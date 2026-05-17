@@ -1,3 +1,10 @@
+# Answers and templates
+*.docx
+*.pptx
+*.Rmd
+*_answer.R
+*_answers.R
+
 # History files
 .Rhistory
 .Rapp.history
