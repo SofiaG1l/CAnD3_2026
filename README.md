@@ -31,8 +31,7 @@ During the session you will learn the following:
 
 -   \[16:30 - 16:45 hrs\] Introduction to content analysis.
 -   \[16:45 – 17:15 hrs\] Data retrieval using “httr2”.
--   \[17:15 - 17:45 hrs\] How to annotate data to create a Gold Standard
-    using “textAnnotatoR”.
+-   \[17:15 - 17:45 hrs\] How to annotate data to create a Gold Standard.
 -   \[17:45 - 18:00 hrs\] Break.
 -   \[18:00 - 18:30 hrs\] Using “tidyllm” to create agents to annotate
     data.
@@ -52,7 +51,6 @@ Participants need to:
 
 -   tidyverse
 -   httr2
--   textAnnotatoR
 -   irr
 -   tidyllm
 -   caret
