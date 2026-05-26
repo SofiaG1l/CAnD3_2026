@@ -4,6 +4,9 @@
 *.Rmd
 *_answer.R
 *_answers.R
+*.RData
+*.csv
+*Guardian_Key.txt
 
 # History files
 .Rhistory

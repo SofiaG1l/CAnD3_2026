@@ -1,0 +1,120 @@
+-   [Data retrieval](#data-retrieval)
+    -   [Accessing data via an API](#accessing-data-via-an-api)
+        -   [Using the package `httr2`](#using-the-package-httr2)
+    -   [Saving your results](#saving-your-results)
+-   [Creating a bigger corpus](#creating-a-bigger-corpus)
+
+# Data retrieval
+
+In this section of the tutorial, you will learn how to download data
+from the Guardian. The assumption is that you already requested and
+obtained your developer The Guardian key. You should have done it
+through this link: <https://open-platform.theguardian.com/access/>.
+
+This part of the tutorial uses the packages:
+
+-   tidyverse
+-   httr2
+
+So, before starting please make sure that you have already installed
+them.
+
+Now, let’s load the packages into R:
+
+    library(tidyverse)
+    library(httr2)
+
+## Accessing data via an API
+
+In general, an Application Programming Interface (API) is used for
+computer programs to communicate with each other. This part of the
+tutorial is based on [Use APIs to source your data in
+R](https://raw.githack.com/Delft-RCafe/resources/main/themes/apis_in_r/apis-in-r.html)
+2023 by Bjørn Bartholdy & Aleksandra Wilczynska.
+
+The most commonly use API type is the Representational State Transfer
+(REST). The REST API uses the HTTP protocol to send and receive
+standardized responses to a server.
+
+There are five HTTP methods that you can use when making an API request
+to a server:
+
+-   **GET**: Retrieves data.
+-   **POST**: Creates a new record.
+-   **PUT**: Modifies or replaces an entire record.
+-   **PATCH**: Modifies or updates parts of a record.
+-   **DELETE**: Deletes an entire record.
+
+Besides those methods, the other important components are:
+
+-   **HTTP method**: Explains what action you will perform.
+-   **endpoint**: The URL to find the resource you are trying to reach
+    on the internet.
+-   **headers**: Provides information relevant both for us and for the
+    server. Such as your The Guardian key!
+-   **body**: These are specific parameters that the server requires.
+
+### Using the package `httr2`
+
+The package `httr2` can be used together with the `tidyverse` package.
+
+The **endpoint** to access The Guardian news is
+<https://content.guardianapis.com/search>. We are going to save this URL
+in a variable called `req`:
+
+    req<-request("https://content.guardianapis.com/search")
+
+Now, we need to:
+
+1.  Set the HTTP method to **GET**. This is done with the function
+    `req_method()`.
+2.  Pass our The Guardian credentials via the **header** using the
+    function `req_headers()`. Please go ahead and replace the variable
+    `KEY` with your own key.
+3.  Pass other parameters through the **body** via `req_url_query()`.
+    The other parameters are:
+
+-   **Query:** For the query, you can check the possible format here
+    <https://open-platform.theguardian.com/documentation/>.
+-   **Other parameters**: You can find a list of the parameters here
+    <https://open-platform.theguardian.com/documentation/search>.
+
+<!-- -->
+
+    query="(artificial intelligence) OR (chat-gpt) OR (open AND ai) OR (llm) OR (large language model*)"
+
+    resp <- req |>
+      req_method("GET") |> # request method
+      req_headers("Accept" = "application/json",
+                  "api-key" = KEY) %>%
+      req_url_query("q" = query,
+                    "from-date" = "2014-01-01",
+                    "to-date" = "2014-06-01")%>%
+      req_perform()
+
+If you explore the variable `resp`, you will see that it is a very long
+string. To be able to read it, we will first turn it into JSON format:
+
+    json_response <- resp_body_string(resp)
+
+Now, we can turn the `json` format into a data frame using the function
+`fromJSON()` from the same package. Let’s also turn this data frame into
+a tibble:
+
+    resp_df <- jsonlite::fromJSON(json_response, flatten = TRUE)
+
+    TheGuardianAI<-tibble(resp_df$response$results)
+
+## Saving your results
+
+Now, we can save your text as a tibble:
+
+    save(TheGuardianAI,file = "TheGuardianAI_2025.RData")
+
+# Creating a bigger corpus
+
+As time is precious, we will create a bigger corpus by each of us
+retrieving values for different years.
+
+I will tell each of you which year to retrieve and where to store the
+data.
