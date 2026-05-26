@@ -21,7 +21,7 @@ It is absolutely necessary that you have checked and followed the
 [requirements](#requirements) section before the workshop. The final
 codes we will follow will be available 24hrs before the workshop.
 
-**When:** May 27th, 2026, between 16:30 and 19:30 hrs.
+**When:** May 27th, 2026, between 16:30 and 19:30 hrs (CET).
 
 **Where:** Check email sent by CAnD3 colleagues.
 
