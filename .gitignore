@@ -1,7 +1,7 @@
 # Answers and templates
 *.docx
 *.pptx
-*.Rmd
+# *.Rmd
 *_answer.R
 *_answers.R
 *.RData

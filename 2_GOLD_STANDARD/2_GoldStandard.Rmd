@@ -1,0 +1,77 @@
+---
+title: "Annotating using textAnnotatoR"
+author: "Sofia Gil-Clavel"
+date: "2026-05-18"
+output: 
+  md_document:
+    toc: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+```
+
+This section is based on:
+
+Krippendorff, Klaus. Content Analysis: An Introduction to Its Methodology. SAGE Publications, Inc., 2019. [https://doi.org/10.4135/9781071878781](https://doi.org/10.4135/9781071878781).
+
+
+The main goal of our project is to be able to answer the research question:
+
+**How has AI been portrayed in the Guardian news in the last 10 years?**
+
+For this, in the previous section, we retrieved all the Guardian articles that 
+contained any of the words:
+
+* artificial intelligence
+* chat-gpt
+* open AND ai
+* llm
+* large language model*
+
+However, after a close inspection of the data, we saw that not all the articles are useful. It is necessary to do something to turn this messy data into useful data for content analysis. To do so, we will perform two steps: (1) generate a Gold Standard, and (2) classify the rest of the data.
+
+To generate a Gold Standard, we must be confident that our data (a) has been generated with all conceivable precautions in place against known pollutants, distortions, and biases, intentional or accidental, and (b) has the same meaning for everyone who uses them. This can be achieved by duplicating the researcher efforts under various conditions. For example, by using several researchers with diverse personalities, by working in differing environments, or by relying on different but functionally equal measuring devices. Reliability is indicated by substantial agreement of results among these duplications, and it can be measured using a metric called "intercoder reliability". With this method, we will create a "Gold Standard".
+
+Once we are sure that this Gold Standard is reliable, we can move on and use it to either train a machine learning model or to train an AI agent. It is important to validate this measures, as in the face of very large collections of texts, we need the machine to  retrieve all and only relevant items and ignore all and only irrelevant ones.
+
+To understand the conceptions of validity in conducting content analyses, one must keep in mind that all empirical validation efforts enlist evidence and established theories to ensure that research results are taken seriously. Validation reduces the risk of making decisions based on misleading research findings.
+
+
+# 1. Gold Standard
+
+In machine learning, the "gold standard" refers to a meticulously curated, expertly labeled dataset that serves as the ultimate benchmark to evaluate a model's performance. It represents the objective "ground truth" against which an AI's accuracy and reliability are measured.
+
+## The Codebook
+
+To create this Gold Standard, the researcher first needs to create something called
+a Codebook. The Codebook contains the rules that the researchers and the annotators
+will follow in order to create the Gold Standard. 
+
+
+
+## The Intercoder Reliability
+
+Intercoder reliability is a way to measure how objective and valid the results of using 
+the Codebook are. For this, three randomly selected people coded the news. Now, let's see how reliable the codebook is!
+
+To measure the intercoder reliability, we will calculate a metric called Krippendorf’s Alpha. Krippendorf’s Alpha evaluates the extent to which multiple coders agree on categorizing or rating a set of data. 
+
+```{r intercoder_reliability}
+library(tidyverse)
+library(irr)
+
+intercoder <- read_csv("~/intercoder_reliability.csv")
+
+intercoder |>
+  select(coder_1_sentiment:coder_3_sentiment) |>
+  t() |>
+  kripp.alpha(method = 'interval')
+```
+
+In short, if the Krippendorf’s Alpha is above 0.79 then we can assume that the measurement of the concept is reliable.
+
+
+
+
+

@@ -1,0 +1,216 @@
+---
+title: "Classification"
+author: "Sofia Gil-Clavel"
+date: "2026-05-18"
+output: 
+  md_document:
+    toc: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+```
+
+These codes are based on:
+
+[LLMs part 3: running generative models remotely on (paid) APIs](https://github.com/ccs-amsterdam/r-course-material/blob/master/tutorials/LLMs_3_APIs.md) by Kasper Welbers.
+
+
+```{r loading_packages}
+
+rm(list=ls())
+gc()
+
+library(tidyverse)
+library(tidyllm)
+library(caret)
+```
+
+```{r ollama prompt}
+
+llm_message("Hi, how are you?")%>%
+  chat(ollama(.model = "llama3.2:1b",
+              .temperature = .0))%>%
+  get_reply()
+
+```
+
+
+## Using Agents
+
+Sometimes LLMs are not very good at following instructions. So, we need to make sure that they only return what we are asking them to return. 
+
+In order to achieve our goal, we need to make sure that the model gives us the answers as a **structured output**. For this, we need to provide a schema, then when the LLM generates the output tokens, it is restricted to producing tokens that match the schema.
+
+Note that only some LLM providers (currently openai, gemini and ollama) support structured output!
+
+**Creating an annotator**
+
+First, we need to create an "annotator", i.e. an LLM persona. This will give the LLM some context as to what we want it to do. As we want to be consistent, we also set the temperature to `0`.
+
+Notice that in the "annotator" we are also adding the codebook.
+
+```{r the annotator}
+
+annotator = llm_message('You are an expert at manual content analysis. I will show you a text, and your task is to classify the relevance of the text for the analysis of how AI is portrayed in the news. Relevant expresses concerns and feelings related to AI risks and progress. Not-relevant describes AI usage or talks about new AI models.')
+
+```
+
+Now, we can ask the LLM to perform a task just by passing the variable `annotator` as input for the function `chat()`:
+
+```{r the task}
+
+response<-annotator |>
+  llm_message("Musk, Wozniak and Hawking urge ban on warfare AI and autonomous weapons") %>%
+  chat(ollama(.model = "llama3.2:1b",
+              .temperature = .0)) %>% 
+  get_reply()
+
+cat(response)
+
+```
+
+Awesome, now we know how to define an "annotator" and how to pass it a "task". All what we are missing is to get the structured output. Remember that for this, we to define a schema.
+
+**Defining a schema**
+
+The schemas are often specified in JSON format, but the tidyllm package also has a nice function to help us build the JSON. You first provide a name for the schema (here we call it `annotation schema`). Then you just provide the names of the fields (think ‘variables’) that you want to get in the answer. Per field you then specify the ‘type’, like character or numeric. You can request for specific classes with factor(class1, class2). And if you add [], like in character[], it means give me a list of values of this type.
+
+Here’s an example of a simple schema where we ask for the relevance with specific values "relevant" or "not-relevant".
+
+```{r json_schema}
+
+json_schema = tidyllm_schema(
+  name = "annotation schema",
+  relevance = "factor(relevant, not-relevant)"
+)
+
+```
+
+Now, when we provide the text, we specify that we want the response to be in the format of our JSON schema.
+
+```{r json_schema2}
+
+response = annotator |>
+  llm_message("Musk, Wozniak and Hawking urge ban on warfare AI and autonomous weapons")%>%
+  chat(ollama(.model = "llama3.2:1b",
+              .temperature = .0, 
+              .json_schema = json_schema))%>%
+  get_reply_data()
+
+print(response$relevance)
+
+
+```
+
+We will place all these elements into a function. We will use this function together with the function `map()` from the package `purrr` to annotate the rest of the data.
+
+```{r Agents function}
+
+OLLAMA_STR_OUT<-function(TASK, ANNOTATOR, MODEL, TEMP, SCHEMA){
+  response = ANNOTATOR |>
+  llm_message(TASK)%>%
+  chat(ollama(.model = MODEL,
+              .temperature = TEMP, 
+              .json_schema = SCHEMA))%>%
+  get_reply_data()
+  
+  return(response$relevance)
+}
+
+
+```
+
+
+## Labeling the sample using the different models
+
+### Zero-Shot Classification
+
+Now, we are going to use a technique called "Zero-Shot Classification". This means that the model will not get any training. 
+
+Let's use our function and the Gold Standard to find the best LLM to annotate our data:
+
+```{r Using models}
+
+GOLD<-read.csv("~/GoldStandard.csv")
+
+LLAMA<-map_vec(GOLD$abstract,
+        safe_OLLAMA_STR_OUT,
+        ANNOTATOR=annotator, 
+        MODEL="llama3.2:1b", 
+        TEMP=0, 
+        SCHEMA=json_schema,
+        .progress = T)
+
+DEEP<-map_vec(GOLD$abstract,
+        OLLAMA_STR_OUT,
+        ANNOTATOR=annotator, 
+        MODEL="deepseek-r1:1.5b", 
+        TEMP=0, 
+        SCHEMA=json_schema,
+        .progress = T)
+
+```
+
+
+Now let's save the data as columns of the Gold Standard:
+
+```{r Saving results}
+
+GOLD$LLAMA=LLAMA
+GOLD$LLAMA=as.factor(GOLD$LLAMA)
+
+GOLD$DEEP=DEEP
+GOLD$DEEP=as.factor(GOLD$DEEP)
+
+# We also need change the values of the Gold Standard to match
+# the predictions from llama and deep seek.
+GOLD$original=factor(GOLD$asreview_label,
+                           levels=c(0,1),
+                           labels = c("not-relevant","relevant"))
+
+
+```
+
+
+# Comparing the models
+
+To compare the models, we will use the validation metrics: recall, precision, and f-score. For this, we will use the function `confusionMatrix` from the package `caret` with the parameter `mode="prec_recall"`. You can check in the help panel how it works.
+
+```{r validating}
+
+confusionMatrix(GOLD$asreview_label,GOLD$LLAMA,
+                mode="prec_recall")
+
+confusionMatrix(GOLD$asreview_label,GOLD$DEEP,
+                mode="prec_recall")
+
+```
+
+Our decision of using one model or the other fully depends on the values of the following validation metrics: 
+
+* Accuracy: The overall percentage of correct predictions out of all predictions.
+* Precision: Out of all the cases the model predicted as positive, how many were actually positive. 
+* Recall: Out of all the actual positive cases in the data, how many did the model manage to catch. 
+* F1: The harmonic mean of precision and recall. It gives a balanced view of the model's performance when you need to consider both False Positives and False Negatives.
+
+## Annotating the rest of the data 
+
+Now, we can annotate the rest of the data using the best model!
+
+```{r annotating the rest}
+
+
+
+```
+
+
+Once you are done, save the data under the following name:
+
+```{r All_Annotated_Data}
+
+save(All_Annotated_Data,file="~/All_Annotated_Data.RData")
+
+```
+
+

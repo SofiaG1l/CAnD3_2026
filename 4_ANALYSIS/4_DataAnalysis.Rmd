@@ -1,0 +1,216 @@
+---
+title: "Analyzing news from the Guardian"
+author: "Sofia Gil-Clavel"
+date: "2026-04-13"
+output: 
+  md_document:
+    toc: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+```
+
+This section is based on:
+
+Gil-Clavel, S. (2025). R-Course: R for Social Scientists (Version 1.0) [Data set]. https://github.com/SofiaG1l/R_Course/. doi: https://doi.org/10.5281/zenodo.17184812.
+
+
+# Data Analysis
+
+Now that we have annotated all the data, let's analyse it. 
+
+First, let's clean the environment. So that, we are not carrying any variables 
+
+```{r clean environment}
+
+rm(list=ls())
+gc()
+
+```
+
+For this section, we will use the following packages:
+
+```{r load packages}
+
+library(tidyverse)
+library(tidytext)
+library(SnowballC)
+library(hunspell)
+
+```
+
+
+Now, let's open your data.
+
+```{r open the data}
+
+load("~/All_Annotated_Data.RData")
+
+
+```
+
+
+## Homogenizing the data
+
+The first step in any text analysis is to homogenize the data. This means performing:
+
+1. Tokenizing
+2. Stemming
+3. Stopword removal
+
+First, to tokenize the data means to turn the sentences into some unit of analysis. For example, characters, words, n-grams (i.e., two or more words), sentences, etc. To tokenize the words, we will use the function `unnest_tokens()` from the package `tidytext`:
+
+```{r tokenize}
+
+TXT=All_Annotated_Data%>%
+  unnest_tokens(words, text)
+
+```
+
+If you check the data, now there is a new column called **word**. We will now continue working with that column.
+
+Second, stopword removal refers to deleting all those words that are too common to provide any context, e.g., the, a, those, etc...
+
+We can remove them using the `stop_words` data frame from the package `tidytext`:
+
+```{r stopword removal}
+
+TXT=TXT%>%
+  filter(!stemms%in%stop_words$word)
+
+```
+
+
+Third, stemming, as some words are just conjugations of a verb, then we can try to consider them as the same word. This is called stemming.
+
+There are multiple algorithms to perform stemming. Today, we will focus on two of them `snowball` and `hunspell`.
+
+To use snowball, you just need to call the function `wordStem()` from the package `SnowballC`:
+
+```{r stemming using snowball}
+TXT=TXT%>%
+  mutate(stem_snow = SnowballC::wordStem(words))
+
+```
+
+To use hunspell, you just need to call the function `hunspell_stem()` from the package `hunspell`:
+
+```{r stemming using hunspell}
+
+TXT=TXT%>%
+  mutate(stem_huns = hunspell::hunspell_stem(words))
+
+# We need to unnest the vector values
+TXT=TXT%>%
+  unnest_wider(stem_huns, simplify = FALSE,names_sep = "_")
+
+TXT=TXT%>%
+  mutate(stem_huns = ifelse(!is.na(stem_huns_2),stem_huns_2,stem_huns_1))%>%
+  # remove the other columns
+  select(-stem_huns_1,-stem_huns_2)
+
+```
+
+Now, you can open the data to check the new columns. Which algorithm performed the best? 
+
+Craete a new column called **stemm** with the result you found most useful, if any, and delete the unused columns.
+
+```{r stemming}
+
+TXT=TXT%>%
+  mutate(stemms=stem_huns)%>%
+  select(-stem_snow,-stem_huns,-stem_huns_3)
+
+# Some of the words in "stemms" are NAs. So, let's replace those with the original word:
+
+TXT<-TXT%>%
+  mutate(stemms=ifelse(is.na(stemms),words,stemms))%>%
+  select(-words)
+
+```
+
+
+We can also consider removing numbers and other special characters, as they may not contribute any special information to our study:
+
+```{r only characters}
+
+TXT<-TXT%>%
+  filter(str_detect(stemms,"[:alpha:]"))
+
+```
+
+
+## Text Mining
+
+### Frequencies
+
+Now, we can look for some interesting patterns. Let's do this by counting the number of words per document and year.
+
+```{r frequencies}
+
+TXT<-TXT%>%
+  group_by(url,datetime,headline,stemms)%>%
+  summarise(total=n())
+
+```
+
+Let's visualize the words that appear the most:
+
+```{r Viz Wordcloud}
+
+TXT%>%
+  ungroup()%>%
+  group_by(stemms)%>%
+  summarise(total=sum(total))%>%
+  slice_max(order_by = total,n=30)%>%
+  mutate(angle = 45 * sample(-2:2, n(), replace = TRUE, 
+                             prob = c(1, 1, 4, 1, 1)))%>%
+  ggplot(aes(label = stemms, size = total, angle = angle)) +
+  ggwordcloud::geom_text_wordcloud_area(
+    rm_outside = TRUE,
+    area_corr = TRUE) + # 
+  scale_size_area(max_size = 20) +
+  theme_minimal()
+
+```
+Let's visualize the frequencies by article:
+
+```{r Viz Freq 1}
+
+TXT%>%
+  slice_max(order_by = total,n=10,with_ties = FALSE)%>%
+  ggplot(aes(total,reorder_within(stemms,total,headline)))+
+  geom_col()+
+  scale_y_reordered()+
+  facet_wrap(str_trunc(headline,25)~.,scales="free")+
+  theme_light()
+
+```
+
+
+### TF-IDF
+
+Sometimes frequency alone is not enough to have a good understanding of what each document is about. A better option is to use the `tf-idf`. This value considers how relevant the term is in comparison with other terms in other documents. term frequency and inverse document frequency.
+
+```{r tf-idf}
+
+TXT=TXT%>%
+  bind_tf_idf(stemms, url, total)
+
+```
+
+Let's visualize the tf-idf values:
+
+```{r Viz2}
+
+TXT%>%
+  slice_max(order_by = tf_idf,n=10,with_ties = FALSE)%>%
+  ggplot(aes(tf_idf,reorder_within(stemms,tf_idf,headline)))+
+  geom_col()+
+  scale_y_reordered()+
+  facet_wrap(str_trunc(headline,25)~.,scales="free")+
+  theme_light()
+
+```
+
