@@ -45,8 +45,10 @@ Now, let's open your data.
 
 ```{r open the data}
 
-load("~/All_Annotated_Data.RData")
+load("C:/GitHub/CAnD3_2026/3_CLASSIFICATION/All_Annotated_Data.RData")
 
+RELEVANT<-all%>%
+  filter(DEEP=="relevant")
 
 ```
 

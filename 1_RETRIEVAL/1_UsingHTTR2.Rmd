@@ -86,8 +86,8 @@ resp <- req |>
   req_headers("Accept" = "application/json",
               "api-key" = KEY) %>%
   req_url_query("q" = query,
-                "from-date" = "2014-01-01",
-                "to-date" = "2014-06-01")%>%
+                "from-date" = "2015-01-01",
+                "to-date" = "2015-06-30")%>%
   req_perform()
 
 ```

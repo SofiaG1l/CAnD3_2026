@@ -61,10 +61,10 @@ To measure the intercoder reliability, we will calculate a metric called Krippen
 library(tidyverse)
 library(irr)
 
-intercoder <- read_csv("~/intercoder_reliability.csv")
+intercoder <- read.table("C:\\GitHub\\CAnD3_2026\\2_GOLD_STANDARD\\Participants\\CAND3_Coders.csv",sep = ";",header = TRUE)
 
 intercoder |>
-  select(coder_1_sentiment:coder_3_sentiment) |>
+  select(Coder_1:Coder_3) |>
   t() |>
   kripp.alpha(method = 'interval')
 ```

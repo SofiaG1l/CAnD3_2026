@@ -132,10 +132,10 @@ Let's use our function and the Gold Standard to find the best LLM to annotate ou
 
 ```{r Using models}
 
-GOLD<-read.csv("~/GoldStandard.csv")
+GOLD<-read.csv("C:/GitHub/CAnD3_2026/2_GOLD_STANDARD/asreview_relevant_irrelevant_GoldStandard_BackUp.csv")
 
 LLAMA<-map_vec(GOLD$abstract,
-        safe_OLLAMA_STR_OUT,
+        OLLAMA_STR_OUT,
         ANNOTATOR=annotator, 
         MODEL="llama3.2:1b", 
         TEMP=0, 
@@ -179,10 +179,10 @@ To compare the models, we will use the validation metrics: recall, precision, an
 
 ```{r validating}
 
-confusionMatrix(GOLD$asreview_label,GOLD$LLAMA,
+confusionMatrix(GOLD$original,GOLD$LLAMA,
                 mode="prec_recall")
 
-confusionMatrix(GOLD$asreview_label,GOLD$DEEP,
+confusionMatrix(GOLD$original,GOLD$DEEP,
                 mode="prec_recall")
 
 ```
@@ -200,6 +200,19 @@ Now, we can annotate the rest of the data using the best model!
 
 ```{r annotating the rest}
 
+load("C:/GitHub/CAnD3_2026/1_RETRIEVAL/TheGuardianAI_ALL.RData")
+
+DEEP<-map_vec(all$webTitle,
+        OLLAMA_STR_OUT,
+        ANNOTATOR=annotator, 
+        MODEL="deepseek-r1:1.5b", 
+        TEMP=0, 
+        SCHEMA=json_schema,
+        .progress = T)
+
+all$DEEP=DEEP
+all$DEEP=as.factor(all$DEEP)
+
 
 
 ```
@@ -209,7 +222,7 @@ Once you are done, save the data under the following name:
 
 ```{r All_Annotated_Data}
 
-save(All_Annotated_Data,file="~/All_Annotated_Data.RData")
+save(all,file="C:/GitHub/CAnD3_2026/3_CLASSIFICATION/All_Annotated_Data.RData")
 
 ```
 
